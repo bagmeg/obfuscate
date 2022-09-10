@@ -6,15 +6,20 @@ import (
 )
 
 type SQLObfuscator struct {
-	cfg config.SQLConfig
+	tokenizer *SQLTokenizer
+	cfg       *config.SQLConfig
 }
 
-func NewSQLObfuscator() *SQLObfuscator {
-	return &SQLObfuscator{}
+func NewSQLObfuscator(cfg config.SQLConfig) *SQLObfuscator {
+	return &SQLObfuscator{
+		tokenizer: newTokenizer(&cfg),
+		cfg:       &cfg,
+	}
 }
 
-func (s *SQLObfuscator) Tokenize() {
-	log.Println("SQL Obfuscator Tokenize()")
+func (s *SQLObfuscator) Tokenize(query string) {
+	s.tokenizer.Reset(query)
+	s.tokenizer.Tokenize()
 }
 
 func (s *SQLObfuscator) Parse() {

@@ -1,6 +1,6 @@
 package obfuscate
 
 type Obfuscator interface {
-	Tokenize()
+	Tokenize(string)
 	Parse()
 }

@@ -22,11 +22,11 @@ func TestObfuscate(t *testing.T) {
 	}
 
 	if SQLobfuscator != nil {
-		SQLobfuscator.Tokenize()
+		SQLobfuscator.Tokenize("query here")
 		SQLobfuscator.Parse()
 	}
 	if LogObfuscator != nil {
-		LogObfuscator.Tokenize()
+		LogObfuscator.Tokenize("some log")
 		LogObfuscator.Parse()
 	}
 }

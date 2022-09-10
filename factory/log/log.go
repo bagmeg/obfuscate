@@ -6,15 +6,18 @@ import (
 )
 
 type LogObfuscator struct {
-	cfg config.LogConfig
+	tokenizer LogTokeniezr
+	cfg       *config.LogConfig
 }
 
-func NewLogObfuscator() *LogObfuscator {
-	return &LogObfuscator{}
+func NewLogObfuscator(cfg config.LogConfig) *LogObfuscator {
+	return &LogObfuscator{
+		cfg: &cfg,
+	}
 }
 
-func (l *LogObfuscator) Tokenize() {
-	log.Println("Log Obfuscator Tokenize()")
+func (l *LogObfuscator) Tokenize(log string) {
+	l.tokenizer.Tokenize()
 }
 
 func (l *LogObfuscator) Parse() {
