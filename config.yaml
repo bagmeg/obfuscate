@@ -1,0 +1,11 @@
+# 난독화 할 목록: sql, log
+enable_list:
+  sql: true
+  log: true
+# sql 설정
+sql_config:
+  db_kind: maria # db_kind: maria, mysql, postgresql
+  digit: true    # 숫자 난독화 여부
+# log 설정
+log_config:
+  digit: true

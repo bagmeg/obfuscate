@@ -1,17 +1,21 @@
 package obfuscate
 
 import (
+	"github.com/bagmeg/obfuscate/config"
 	"github.com/bagmeg/obfuscate/factory/log"
 	"github.com/bagmeg/obfuscate/factory/sql"
 )
 
-func NewObfuscator(t string) Obfuscator {
-	switch t {
-	case "db":
-		return sql.NewSQLObfuscator()
-	case "log":
-		return log.NewLogObfuscator()
+func NewObfuscator(cfg *config.Config) (Obfuscator, Obfuscator) {
+	switch {
+	case cfg.Enabled.Sql:
+		if cfg.Enabled.Log {
+			return sql.NewSQLObfuscator(), log.NewLogObfuscator()
+		}
+		return sql.NewSQLObfuscator(), nil
+	case cfg.Enabled.Log:
+		return nil, log.NewLogObfuscator()
 	default:
-		return nil
+		return nil, nil
 	}
 }
