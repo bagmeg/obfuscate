@@ -10,65 +10,50 @@ import (
 
 type TokenKind uint32
 
-type token struct {
-	token TokenKind
-}
-
-type SQLTokenizer struct {
-	pos         int
+type SQLScanner struct {
+	size        int
 	off         int
 	lastChar    rune
 	buf         []byte
 	err         error
 	latestToken TokenKind
 	cfg         *config.SQLConfig
-	tokens      []token
 }
 
-func (tkn *SQLTokenizer) Tokenize() {
-
-}
-
-func newTokenizer(cfg *config.SQLConfig) *SQLTokenizer {
+func newScanner(cfg *config.SQLConfig) *SQLScanner {
 	if cfg == nil {
 		cfg = new(config.SQLConfig)
 	}
-	return &SQLTokenizer{
+	return &SQLScanner{
 		cfg: cfg,
 	}
 }
 
-func (tkn *SQLTokenizer) Reset(in string) {
+func (tkn *SQLScanner) Reset(in string) {
 	tkn.reset(in)
 }
 
-func (tkn *SQLTokenizer) reset(in string) {
-	tkn.pos = 0
+func (tkn *SQLScanner) reset(in string) {
+	tkn.size = 0
 	tkn.off = 0
 	tkn.lastChar = 0
 	tkn.buf = []byte(in)
 	tkn.err = nil
-	tkn.tokens = nil
 }
 
-func (tkn *SQLTokenizer) Err() error {
+func (tkn *SQLScanner) Err() error {
 	return tkn.err
 }
 
-func (tkn *SQLTokenizer) setErr(format string, args ...interface{}) {
+func (tkn *SQLScanner) setErr(format string, args ...interface{}) {
 	if tkn.err != nil {
 		return
 	}
-	tkn.err = fmt.Errorf("sqltokenizer at position %d: %v", tkn.pos, fmt.Errorf(format, args...))
-}
-
-// Filter filters the token according to the config file
-func (tkn *SQLTokenizer) Filter() {
-
+	tkn.err = fmt.Errorf("sqlScanner at position %d: %v", tkn.size, fmt.Errorf(format, args...))
 }
 
 // Scan scans the given query string and generates token
-func (tkn *SQLTokenizer) Scan() (TokenKind, []byte) {
+func (tkn *SQLScanner) Scan() (TokenKind, []byte) {
 	if tkn.lastChar == 0 {
 		tkn.advance()
 	}
@@ -107,7 +92,11 @@ func (tkn *SQLTokenizer) Scan() (TokenKind, []byte) {
 				tkn.scanNumber()
 				return POSITIONAL, []byte("?")
 			}
-			return SKIPNEXTSPACE, tkn.bytes()
+			t, e := tkn.scanString('$')
+			if t == LexError {
+				return LexError, tkn.bytes()
+			}
+			return FUNCTION, e
 		case '(':
 			// mysql (?) 인 경우 ? 로 처리 필요
 			if tkn.lastChar == '?' {
@@ -134,7 +123,7 @@ func isDigit(ch rune) bool {
 	return '0' <= ch && ch <= '9'
 }
 
-func (tkn *SQLTokenizer) scanIdentifier() (TokenKind, []byte) {
+func (tkn *SQLScanner) scanIdentifier() (TokenKind, []byte) {
 	tkn.advance()
 	for isLetter(tkn.lastChar) || isDigit(tkn.lastChar) || tkn.lastChar == '.' || tkn.lastChar == '*' || tkn.lastChar == '_' {
 		tkn.advance()
@@ -148,7 +137,7 @@ func (tkn *SQLTokenizer) scanIdentifier() (TokenKind, []byte) {
 	return ID, t
 }
 
-func (tkn *SQLTokenizer) skipBlank() {
+func (tkn *SQLScanner) skipBlank() {
 	for {
 		if unicode.IsSpace(tkn.lastChar) {
 			tkn.advance()
@@ -159,7 +148,7 @@ func (tkn *SQLTokenizer) skipBlank() {
 	tkn.bytes()
 }
 
-func (tkn *SQLTokenizer) scanString(delim rune) (TokenKind, []byte) {
+func (tkn *SQLScanner) scanString(delim rune) (TokenKind, []byte) {
 	for {
 		// TODO 현재는 delim 안에서  escape character를 무시하고 있지만 처리가 필요한지 확인 필요
 		ch := tkn.lastChar
@@ -183,7 +172,7 @@ func (tkn *SQLTokenizer) scanString(delim rune) (TokenKind, []byte) {
 }
 
 // scanNumber scans consecutive numbers ex) 1234 -> 1234
-func (tkn *SQLTokenizer) scanNumber() (TokenKind, []byte) {
+func (tkn *SQLScanner) scanNumber() (TokenKind, []byte) {
 	// TODO 8, 16진수도 scan할 수 있게 수정 필요
 	// 일단 10진수만  + 소수점
 	tkn.scanByBase(10)
@@ -195,13 +184,8 @@ func (tkn *SQLTokenizer) scanNumber() (TokenKind, []byte) {
 	return NUMBER, tkn.bytes()
 }
 
-func (tkn *SQLTokenizer) scanByBase(base int) {
-	// if value < base then advance
-	// else return
-
+func (tkn *SQLScanner) scanByBase(base int) {
 	// base = 10
-	// space, ',' 경우 10 보다 작기 때문에 음수값이 나온다....
-	// TODO base 보다 작은 ascii code에 대한 작업 처리
 	for '0' <= tkn.lastChar && tkn.lastChar <= '9' && int(tkn.lastChar)-'0' < base {
 		tkn.advance()
 	}
@@ -209,22 +193,24 @@ func (tkn *SQLTokenizer) scanByBase(base int) {
 }
 
 // next reads next rune
-func (tkn *SQLTokenizer) advance() {
+func (tkn *SQLScanner) advance() {
 	ch, n := utf8.DecodeRune(tkn.buf[tkn.off:])
 	if ch == utf8.RuneError {
 		tkn.lastChar = EndChar
 		if n == 1 {
 			tkn.setErr("Invalid encoding: %v", tkn.buf[tkn.off])
-
 		}
-		tkn.pos++
+		tkn.size++
 		return
+	}
+	if tkn.lastChar != 0 || tkn.size > 0 {
+		tkn.size += n
 	}
 	tkn.off += n
 	tkn.lastChar = ch
 }
 
-func (tkn *SQLTokenizer) bytes() []byte {
+func (tkn *SQLScanner) bytes() []byte {
 	if tkn.lastChar == EndChar {
 		ret := tkn.buf[:tkn.off]
 		tkn.buf = tkn.buf[tkn.off:]

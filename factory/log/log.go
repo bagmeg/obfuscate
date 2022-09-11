@@ -2,12 +2,11 @@ package log
 
 import (
 	"github.com/bagmeg/obfuscate/config"
-	"log"
 )
 
 type LogObfuscator struct {
-	tokenizer LogTokeniezr
-	cfg       *config.LogConfig
+	scanner LogScanner
+	cfg     *config.LogConfig
 }
 
 func NewLogObfuscator(cfg config.LogConfig) *LogObfuscator {
@@ -16,10 +15,7 @@ func NewLogObfuscator(cfg config.LogConfig) *LogObfuscator {
 	}
 }
 
-func (l *LogObfuscator) Tokenize(log string) {
-	l.tokenizer.Tokenize()
-}
-
-func (l *LogObfuscator) Parse() {
-	log.Println("Log Obfuscator Parse()")
+func (l *LogObfuscator) Scan(log string) (string, error) {
+	l.scanner.Scan()
+	return "", nil
 }

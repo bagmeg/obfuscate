@@ -1,6 +1,5 @@
 package obfuscate
 
 type Obfuscator interface {
-	Tokenize(string)
-	Parse()
+	Scan(string) (string, error)
 }
